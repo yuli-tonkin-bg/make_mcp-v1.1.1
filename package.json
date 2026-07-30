@@ -1,6 +1,6 @@
 {
   "name": "make-mcp",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "type": "module",
   "description": "Model Context Protocol server for Make.com (Integromat) integration",
   "main": "server.js",

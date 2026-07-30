@@ -2,8 +2,8 @@
   "manifest_version": "0.2",
   "name": "make-mcp",
   "display_name": "Make.com Integration for Tonkin Team",
-  "version": "1.3.0",
-  "description": "Make.com (Integromat) integration for the Tonkin team — scenarios, executions, data stores, incomplete-execution retries, webhooks and connections",
+  "version": "1.4.0",
+  "description": "Make.com (Integromat) integration for the Tonkin team — scenarios, blueprints, executions, data stores, incomplete-execution retries and DLQ bundles, webhooks and connections",
   "author": {
     "name": "Tonkin Team"
   },
@@ -39,6 +39,10 @@
     {
       "name": "make_get_scenario",
       "description": "Get full details of a single scenario"
+    },
+    {
+      "name": "make_get_blueprint",
+      "description": "Get the full blueprint (modules, params, filters, connections) of a scenario"
     },
     {
       "name": "make_run_scenario",
@@ -91,6 +95,10 @@
     {
       "name": "make_retry_execution",
       "description": "Retry a single incomplete/failed execution by id"
+    },
+    {
+      "name": "make_get_dlq_bundle",
+      "description": "Get the real data (bundle) behind a failed/incomplete execution"
     },
     {
       "name": "make_list_hooks",
