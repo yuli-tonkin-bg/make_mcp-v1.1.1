@@ -133,7 +133,7 @@ async function makeRequest(endpoint, { method = "GET", data = null, params = nul
     headers: {
       Authorization: `Token ${API_TOKEN}`,
       "Content-Type": "application/json",
-      "User-Agent": "MakeMCPServer/1.4.1",
+      "User-Agent": "MakeMCPServer/1.5.0",
     },
     timeout,
   };
@@ -263,6 +263,27 @@ async function getBlueprint(scenarioId) {
   return await makeRequest(`/scenarios/${encodeURIComponent(scenarioId)}/blueprint`);
 }
 
+// Клонира сценарий — безопасен начин за тестване на структурни промени без риск за
+// живия сценарий (П2, виж Make_MCP_Анализ_и_Препоръки.md раздел 4). states по подразбиране
+// false: клонингът тръгва "чист", без да носи изпълнителското състояние на оригинала.
+async function cloneScenario({ scenario_id, name, team_id, organization_id, states } = {}) {
+  if (!scenario_id) throw new Error("scenario_id е задължителен.");
+  if (!name) throw new Error("name е задължителен (име за клонинга).");
+  const teamId = await resolveTeamId(team_id);
+  let orgId = (organization_id || DEFAULT_ORG_ID || "").toString().trim();
+  if (!orgId) {
+    const orgs = await makePaginated("/organizations", "organizations", { pageLimit: 100, maxItems: 200 });
+    if (orgs.length === 1) orgId = String(orgs[0].id);
+    else throw new Error("Нужен е organization_id за клониране (има повече от една организация). Извикай make_list_organizations.");
+  }
+  const body = { name, teamId, states: states === true };
+  return await makeRequest(`/scenarios/${encodeURIComponent(scenario_id)}/clone`, {
+    method: "POST",
+    data: body,
+    params: { organizationId: orgId },
+  });
+}
+
 async function runScenario({ scenario_id, data, wait } = {}) {
   if (!scenario_id) throw new Error("scenario_id е задължителен.");
   const responsive = wait !== false; // по подразбиране изчакваме резултата (Make таймаут ~40s)
@@ -380,6 +401,19 @@ async function getDlqBundle({ dlq_id } = {}) {
   return await makeRequest(`/dlqs/${encodeURIComponent(dlq_id)}/bundle`);
 }
 
+// Трие САМО изрично посочени DLQ записи (П2). Bulk "изтрий всичко" (API поддържа all:true)
+// нарочно не е изложено тук — виж модела за безопасност в Make_MCP_Анализ_и_Препоръки.md раздел 4.
+async function deleteDlq({ scenario_id, dlq_ids } = {}) {
+  if (!scenario_id) throw new Error("scenario_id е задължителен.");
+  const ids = Array.isArray(dlq_ids) ? dlq_ids.map(String).filter((k) => k.length) : (dlq_ids ? [String(dlq_ids)] : []);
+  if (!ids.length) throw new Error("Подай поне един dlq_id (dlq_ids) за триене. Изтриване на ВСИЧКИ записи не се поддържа от този инструмент нарочно.");
+  return await makeRequest("/dlqs", {
+    method: "DELETE",
+    params: { scenarioId: scenario_id, confirmed: true },
+    data: { ids },
+  });
+}
+
 async function listHooks({ team_id } = {}) {
   const teamId = await resolveTeamId(team_id);
   const hooks = await makePaginated("/hooks", "hooks", { params: { teamId }, pageLimit: 100, maxItems: 300 });
@@ -422,6 +456,7 @@ const tools = [
   { name: "make_list_scenarios", description: "List Make.com scenarios (automations) for a team or organization. Provide team_id OR organization_id (falls back to the configured ones, or the single org). Set active_only=true to return only active scenarios. Results are capped (default 500); 'capped' tells you if more exist.", inputSchema: { type: "object", properties: { team_id: { type: "string", description: "Team ID to list scenarios for (preferred)" }, organization_id: { type: "string", description: "Organization ID (used if team_id is not given)" }, active_only: { type: "boolean", description: "Only active scenarios (default false)" }, limit: { type: "number", description: "Max scenarios to return (default 500, max 2000)" } }, required: [] } },
   { name: "make_get_scenario", description: "Get full details of a single Make.com scenario by its ID (status, scheduling, team, description, etc.).", inputSchema: { type: "object", properties: { scenario_id: { type: "string", description: "The scenario ID" } }, required: ["scenario_id"] } },
   { name: "make_get_blueprint", description: "Get the full blueprint (JSON structure) of a Make.com scenario — every module, its parameters, filters and how modules connect to each other. This is the same data Make's own editor renders as the canvas. Use it to inspect exact module configuration without asking the user for screenshots.", inputSchema: { type: "object", properties: { scenario_id: { type: "string", description: "The scenario ID" } }, required: ["scenario_id"] } },
+  { name: "make_clone_scenario", description: "Clone a Make.com scenario into a new one with a given name — the safe way to test structural changes (e.g. before make_update_blueprint) without touching the live scenario. team_id/organization_id fall back to the configured ones or the single team/org. states=true also copies module execution state (e.g. last trigger position); default false gives a clean copy.", inputSchema: { type: "object", properties: { scenario_id: { type: "string", description: "The scenario ID to clone" }, name: { type: "string", description: "Name for the cloned scenario" }, team_id: { type: "string", description: "Team ID to clone into (optional; falls back to configured MAKE_TEAM_ID or the only team)" }, organization_id: { type: "string", description: "Organization ID (optional; falls back to configured MAKE_ORG_ID or the only org)" }, states: { type: "boolean", description: "Also copy module execution state (default false = clean clone)" } }, required: ["scenario_id", "name"] } },
   { name: "make_run_scenario", description: "Run a Make.com scenario on demand (right now). By default waits for the run to finish and returns the result (Make waits up to ~40s); set wait=false to trigger and return the executionId immediately without waiting. 'data' is optional input passed to the scenario (only relevant if it starts with a trigger that accepts input). NOTE: the scenario must be ACTIVE — Make returns HTTP 422 'Scenario is not activated' for an inactive scenario; if needed, activate it first with make_start_scenario.", inputSchema: { type: "object", properties: { scenario_id: { type: "string", description: "The scenario ID to run" }, data: { type: "object", description: "Optional input data object passed to the scenario run" }, wait: { type: "boolean", description: "Wait for completion and return the result (default true). false = fire-and-forget, returns executionId." } }, required: ["scenario_id"] } },
   { name: "make_start_scenario", description: "Activate (turn ON / schedule) a Make.com scenario so it runs on its schedule or trigger.", inputSchema: { type: "object", properties: { scenario_id: { type: "string", description: "The scenario ID to activate" } }, required: ["scenario_id"] } },
   { name: "make_stop_scenario", description: "Deactivate (turn OFF) a Make.com scenario so it stops running on its schedule/trigger.", inputSchema: { type: "object", properties: { scenario_id: { type: "string", description: "The scenario ID to deactivate" } }, required: ["scenario_id"] } },
@@ -436,6 +471,7 @@ const tools = [
   { name: "make_list_incomplete", description: "List incomplete/failed executions (DLQ) of a Make.com scenario — runs that errored and are waiting. Use this before retrying.", inputSchema: { type: "object", properties: { scenario_id: { type: "string", description: "The scenario ID" }, limit: { type: "number", description: "Max entries (default 50, max 200)" } }, required: ["scenario_id"] } },
   { name: "make_retry_execution", description: "Retry a single incomplete/failed execution (DLQ item) by its id (from make_list_incomplete). This RE-RUNS the failed execution.", inputSchema: { type: "object", properties: { dlq_id: { type: "string", description: "The incomplete-execution (DLQ) id from make_list_incomplete" } }, required: ["dlq_id"] } },
   { name: "make_get_dlq_bundle", description: "Get the actual data (bundle) that was being processed at the moment a scenario execution failed — the real input/output values behind an incomplete/failed execution (from make_list_incomplete). Use this for real diagnosis instead of guessing from error messages alone.", inputSchema: { type: "object", properties: { dlq_id: { type: "string", description: "The incomplete-execution (DLQ) id from make_list_incomplete" } }, required: ["dlq_id"] } },
+  { name: "make_delete_dlq", description: "Delete specific incomplete/failed execution(s) (DLQ items) by id, from a given scenario. Pass 'dlq_ids' as an array of the exact ids to delete (from make_list_incomplete) — ONLY those are removed. Deleting ALL incomplete executions of a scenario is intentionally NOT supported here, for safety.", inputSchema: { type: "object", properties: { scenario_id: { type: "string", description: "The scenario ID the DLQ items belong to" }, dlq_ids: { type: "array", items: { type: "string" }, description: "Array of DLQ ids to delete (only these are removed)" } }, required: ["scenario_id", "dlq_ids"] } },
   { name: "make_list_hooks", description: "List Make.com webhooks for a team. Returns each hook's id, name and its webhook URL (used by make_trigger_webhook). team_id falls back to the configured team or the only team.", inputSchema: { type: "object", properties: { team_id: { type: "string", description: "Team ID (optional; falls back to configured MAKE_TEAM_ID or the only team)" } }, required: [] } },
   { name: "make_trigger_webhook", description: "Trigger a Make.com scenario by sending a POST to its webhook URL (from make_list_hooks). This FIRES the scenario for real. 'data' is an optional JSON payload sent to the webhook.", inputSchema: { type: "object", properties: { url: { type: "string", description: "The webhook URL to POST to (e.g. https://hook.eu2.make.com/...)" }, data: { type: "object", description: "Optional JSON payload sent to the webhook" } }, required: ["url"] } },
   { name: "make_list_connections", description: "List Make.com connections (linked app accounts) for a team — id, name and app. Useful to see which integrations are connected. team_id falls back to the configured team or the only team.", inputSchema: { type: "object", properties: { team_id: { type: "string", description: "Team ID (optional; falls back to configured MAKE_TEAM_ID or the only team)" } }, required: [] } },
@@ -449,6 +485,7 @@ async function handleTool(toolName, toolInput) {
     case "make_list_scenarios": return await listScenarios(toolInput);
     case "make_get_scenario": return await getScenario(toolInput.scenario_id);
     case "make_get_blueprint": return await getBlueprint(toolInput.scenario_id);
+    case "make_clone_scenario": return await cloneScenario(toolInput);
     case "make_run_scenario": return await runScenario(toolInput);
     case "make_start_scenario": return await startScenario(toolInput.scenario_id);
     case "make_stop_scenario": return await stopScenario(toolInput.scenario_id);
@@ -463,6 +500,7 @@ async function handleTool(toolName, toolInput) {
     case "make_list_incomplete": return await listIncomplete(toolInput);
     case "make_retry_execution": return await retryExecution(toolInput);
     case "make_get_dlq_bundle": return await getDlqBundle(toolInput);
+    case "make_delete_dlq": return await deleteDlq(toolInput);
     case "make_list_hooks": return await listHooks(toolInput);
     case "make_trigger_webhook": return await triggerWebhook(toolInput);
     case "make_list_connections": return await listConnections(toolInput);
@@ -471,7 +509,7 @@ async function handleTool(toolName, toolInput) {
   }
 }
 
-const server = new Server({ name: "make-mcp", version: "1.4.1" }, { capabilities: { tools: {} } });
+const server = new Server({ name: "make-mcp", version: "1.5.0" }, { capabilities: { tools: {} } });
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
 
@@ -551,4 +589,4 @@ main().catch((error) => {
   console.error("Fatal error:", error);
   process.exit(1);
 });
-// v1.4.1
+// v1.5.0
