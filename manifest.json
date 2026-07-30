@@ -2,8 +2,8 @@
   "manifest_version": "0.2",
   "name": "make-mcp",
   "display_name": "Make.com Integration for Tonkin Team",
-  "version": "1.5.0",
-  "description": "Make.com (Integromat) integration for the Tonkin team — scenarios, blueprints and cloning, executions, data stores, incomplete-execution retries and DLQ bundles/deletes, webhooks and connections",
+  "version": "1.6.0",
+  "description": "Make.com (Integromat) integration for the Tonkin team — scenarios, blueprints (read, clone, update), executions, data stores, incomplete-execution retries and DLQ bundles/deletes, webhooks and connections",
   "author": {
     "name": "Tonkin Team"
   },
@@ -47,6 +47,10 @@
     {
       "name": "make_clone_scenario",
       "description": "Clone a scenario into a new one (safe copy for testing changes)"
+    },
+    {
+      "name": "make_update_blueprint",
+      "description": "HIGH RISK: update a scenario's blueprint/scheduling/name/folder (requires confirmed:true)"
     },
     {
       "name": "make_run_scenario",

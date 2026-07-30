@@ -133,7 +133,7 @@ async function makeRequest(endpoint, { method = "GET", data = null, params = nul
     headers: {
       Authorization: `Token ${API_TOKEN}`,
       "Content-Type": "application/json",
-      "User-Agent": "MakeMCPServer/1.5.0",
+      "User-Agent": "MakeMCPServer/1.6.0",
     },
     timeout,
   };
@@ -282,6 +282,46 @@ async function cloneScenario({ scenario_id, name, team_id, organization_id, stat
     data: body,
     params: { organizationId: orgId },
   });
+}
+
+// Обновява blueprint/scheduling/име/папка на сценарий (П2 висока стойност — най-рисковият
+// инструмент досега). confirmed=true е собствена спирачка на този инструмент (Make API не я
+// изисква) — извикващият трябва първо да е показал точния план на потребителя и да е получил
+// изрично одобрение, за предпочитане приложено първо върху клонинг (make_clone_scenario).
+// Преди PATCH-а взима свеж "преди"-snapshot на текущия blueprint и го връща в отговора —
+// не блокира и не сравнява нищо, само пази бърз път за ръчно връщане назад. Виж
+// Make_MCP_Анализ_и_Препоръки.md раздел 4.
+async function updateBlueprint({ scenario_id, blueprint, name, folder_id, scheduling, confirmed } = {}) {
+  if (!scenario_id) throw new Error("scenario_id е задължителен.");
+  if (confirmed !== true) {
+    throw new Error(
+      "confirmed=true е задължителен за make_update_blueprint. Първо покажи на потребителя точния план " +
+      "(идеално blueprint diff спрямо текущия от make_get_blueprint) и вземи изрично одобрение — за предпочитане " +
+      "приложено първо върху клонинг (make_clone_scenario) — преди да извикаш този инструмент отново с confirmed:true."
+    );
+  }
+  const body = {};
+  if (blueprint !== undefined) {
+    let parsed;
+    if (typeof blueprint === "string") {
+      try { parsed = JSON.parse(blueprint); } catch (e) { throw new Error(`blueprint не е валиден JSON: ${e.message}`); }
+    } else if (blueprint && typeof blueprint === "object") {
+      parsed = blueprint;
+    } else {
+      throw new Error("blueprint трябва да е JSON обект или JSON низ.");
+    }
+    body.blueprint = JSON.stringify(parsed);
+  }
+  if (name !== undefined) body.name = name;
+  if (folder_id !== undefined) body.folderId = folder_id;
+  if (scheduling !== undefined) {
+    body.scheduling = typeof scheduling === "string" ? scheduling : JSON.stringify(scheduling);
+  }
+  if (Object.keys(body).length === 0) throw new Error("Подай поне едно поле за промяна (blueprint, name, folder_id, scheduling).");
+
+  const before_blueprint = await getBlueprint(scenario_id);
+  const update_result = await makeRequest(`/scenarios/${encodeURIComponent(scenario_id)}`, { method: "PATCH", data: body });
+  return { before_blueprint, update_result };
 }
 
 async function runScenario({ scenario_id, data, wait } = {}) {
@@ -457,6 +497,7 @@ const tools = [
   { name: "make_get_scenario", description: "Get full details of a single Make.com scenario by its ID (status, scheduling, team, description, etc.).", inputSchema: { type: "object", properties: { scenario_id: { type: "string", description: "The scenario ID" } }, required: ["scenario_id"] } },
   { name: "make_get_blueprint", description: "Get the full blueprint (JSON structure) of a Make.com scenario — every module, its parameters, filters and how modules connect to each other. This is the same data Make's own editor renders as the canvas. Use it to inspect exact module configuration without asking the user for screenshots.", inputSchema: { type: "object", properties: { scenario_id: { type: "string", description: "The scenario ID" } }, required: ["scenario_id"] } },
   { name: "make_clone_scenario", description: "Clone a Make.com scenario into a new one with a given name — the safe way to test structural changes (e.g. before make_update_blueprint) without touching the live scenario. team_id/organization_id fall back to the configured ones or the single team/org. states=true also copies module execution state (e.g. last trigger position); default false gives a clean copy.", inputSchema: { type: "object", properties: { scenario_id: { type: "string", description: "The scenario ID to clone" }, name: { type: "string", description: "Name for the cloned scenario" }, team_id: { type: "string", description: "Team ID to clone into (optional; falls back to configured MAKE_TEAM_ID or the only team)" }, organization_id: { type: "string", description: "Organization ID (optional; falls back to configured MAKE_ORG_ID or the only org)" }, states: { type: "boolean", description: "Also copy module execution state (default false = clean clone)" } }, required: ["scenario_id", "name"] } },
+  { name: "make_update_blueprint", description: "HIGH RISK: update a scenario's blueprint (module structure/params/filters/connections), scheduling, name, and/or folder via PATCH — modifies REAL scenario structure. MANDATORY workflow before calling: (1) call make_get_blueprint to see the current structure, (2) present the user the exact planned change/diff and get their explicit approval, (3) strongly prefer testing structural changes on a clone first (make_clone_scenario) before touching the live scenario. Requires confirmed:true as proof this workflow happened (this tool's own safety gate — Make's API does not require it; refuses otherwise). Before applying, takes a fresh snapshot of the current blueprint and returns it alongside the update result as 'before_blueprint', so the prior state can be manually restored (by calling this tool again with that blueprint) if the change turns out wrong — this is a recovery aid only, it does not block or compare against that snapshot.", inputSchema: { type: "object", properties: { scenario_id: { type: "string", description: "The scenario ID to update" }, blueprint: { type: "object", description: "The new blueprint (JSON object matching Make's blueprint structure). Omit to only change name/folder_id/scheduling." }, name: { type: "string", description: "New name for the scenario (optional)" }, folder_id: { type: "string", description: "Move the scenario to this folder ID (optional)" }, scheduling: { type: "object", description: "New scheduling configuration (optional)" }, confirmed: { type: "boolean", description: "Must be true — confirms the plan-approval(-clone) workflow was followed before this call" } }, required: ["scenario_id", "confirmed"] } },
   { name: "make_run_scenario", description: "Run a Make.com scenario on demand (right now). By default waits for the run to finish and returns the result (Make waits up to ~40s); set wait=false to trigger and return the executionId immediately without waiting. 'data' is optional input passed to the scenario (only relevant if it starts with a trigger that accepts input). NOTE: the scenario must be ACTIVE — Make returns HTTP 422 'Scenario is not activated' for an inactive scenario; if needed, activate it first with make_start_scenario.", inputSchema: { type: "object", properties: { scenario_id: { type: "string", description: "The scenario ID to run" }, data: { type: "object", description: "Optional input data object passed to the scenario run" }, wait: { type: "boolean", description: "Wait for completion and return the result (default true). false = fire-and-forget, returns executionId." } }, required: ["scenario_id"] } },
   { name: "make_start_scenario", description: "Activate (turn ON / schedule) a Make.com scenario so it runs on its schedule or trigger.", inputSchema: { type: "object", properties: { scenario_id: { type: "string", description: "The scenario ID to activate" } }, required: ["scenario_id"] } },
   { name: "make_stop_scenario", description: "Deactivate (turn OFF) a Make.com scenario so it stops running on its schedule/trigger.", inputSchema: { type: "object", properties: { scenario_id: { type: "string", description: "The scenario ID to deactivate" } }, required: ["scenario_id"] } },
@@ -486,6 +527,7 @@ async function handleTool(toolName, toolInput) {
     case "make_get_scenario": return await getScenario(toolInput.scenario_id);
     case "make_get_blueprint": return await getBlueprint(toolInput.scenario_id);
     case "make_clone_scenario": return await cloneScenario(toolInput);
+    case "make_update_blueprint": return await updateBlueprint(toolInput);
     case "make_run_scenario": return await runScenario(toolInput);
     case "make_start_scenario": return await startScenario(toolInput.scenario_id);
     case "make_stop_scenario": return await stopScenario(toolInput.scenario_id);
@@ -509,7 +551,7 @@ async function handleTool(toolName, toolInput) {
   }
 }
 
-const server = new Server({ name: "make-mcp", version: "1.5.0" }, { capabilities: { tools: {} } });
+const server = new Server({ name: "make-mcp", version: "1.6.0" }, { capabilities: { tools: {} } });
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
 
@@ -589,4 +631,4 @@ main().catch((error) => {
   console.error("Fatal error:", error);
   process.exit(1);
 });
-// v1.5.0
+// v1.6.0
