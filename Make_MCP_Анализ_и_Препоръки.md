@@ -139,6 +139,36 @@
 
 ---
 
+## 7. П3 — ресърч и рискове (добавено 30.07.2026, след изграждане и живо тестване на П1+П2)
+
+П1 и П2 (и ниско-рисково, и високо-стойностно) са изградени, release-нати и потвърдени на живо (виж `HANDOFF.md` раздел 2). Преди да продължи към П3, направен е допълнителен ресърч в Make community форума и официалната документация за всеки от трите инструмента — резултатът промени първоначалната преценка за реда/готовността им. **Решение на 30.07.2026: П3 се оставя на пауза**, докато не се реши да продължи.
+
+### 7.1 `make_replay_execution` — риск: среден, с реална неясноta около основната му цел
+
+- Официалната документация потвърждава endpoint-а (`POST /scenarios/{id}/replay`), но с документиран капан: **приема масив от execution ID-та, но реално replay-ва само първия**.
+- Директен въпрос към Make community "може ли да се replay-не УСПЕШНО (не DLQ) изпълнение" — точно основната причина да построим инструмента (напр. случая с Промпт 2, връщащ `json: "null"`, но статус 200 — не е в DLQ). **Make support не потвърдиха, че работи** — предложиха заобиколен ръчен път (изтегли bundle, симулирай наново) вместо да потвърдят native replay за успешни изпълнения.
+- Реални последствия при извикване: пуска цялата верига пак (пише в Google Docs, Monday board) — същите живи ефекти като вече съществуващия `make_run_scenario`.
+
+### 7.2 `make_get_scenario_interface` / `make_update_scenario_interface` — риск: среден-висок, най-слабо доказан от трети страни
+
+- Почти липсват community следи за конкретно тази операция.
+- Свързан намерен проблем: "Custom App: Scenario Still Shows Old Module Schema After Update" — след промяна през API, схемата понякога остава стара/несинхронизирана за други модули/сценарии, които я ползват.
+- За under-scenario interface (напр. модула „C", приемащ transcript/item_id/ime_klient) това означава реален риск от тихо счупване на сценарии, извикващи го по старата сигнатура.
+
+### 7.3 `make_create_connection` — риск: среден, но най-добре документиран
+
+- Намерен детайлен, работещ пример от друг разработчик (стъпка по стъпка, вкл. OAuth flow).
+- Ключово ограничение: **OAuth връзки (вероятно Google Drive/Docs, Monday) не могат да се създадат изцяло програмно** — нужен е човек да завърши авторизацията в браузър; природата на OAuth не позволява друго. Инструментът реално би помагал само за **API-key** връзки (напр. Speechmatics).
+- Документирани бъгове: новосъздадени връзки понякога временно невидими в списъка; OAuth полета понякога празни след създаване.
+
+### 7.4 Препоръчан ред, ако/когато П3 продължи
+
+1. `make_create_connection` — най-добре доказан от трети страни (макар ограничена реална полезност — само API-key типове).
+2. `make_replay_execution` — работи документирано, но тествай внимателно дали покрива успешни (не само DLQ) изпълнения, преди да разчиташ на него за основния use case.
+3. `make_update_scenario_interface` — последно; най-малко доказан, най-висок риск от скрито счупване на извикващи сценарии.
+
+---
+
 ## Източници
 
 - [Scenarios | Make API | Make Developer Hub](https://developers.make.com/api-documentation/api-reference/scenarios)
@@ -148,3 +178,8 @@
 - [MCP Best Practices — Model Context Protocol](https://mcp-best-practice.github.io/mcp-best-practice/best-practice/)
 - [Security Best Practices — Model Context Protocol official docs](https://modelcontextprotocol.io/docs/tutorials/security/security_best_practices)
 - [MCP Security Issues and Best Practices](https://www.knostic.ai/blog/mcp-security)
+- [Is it possible to replay a successful scenario? — Make Community](https://community.make.com/t/is-it-possible-to-replay-a-successful-scenario/9178)
+- [Make API: Creation and Validation/Testing of Make Connections via Make API — Make Community](https://community.make.com/t/make-api-creation-and-validation-testing-of-make-connections-via-make-api-with-solution/4861)
+- [Custom App: Scenario Still Shows Old Module Schema After Update — Make Community](https://community.make.com/t/custom-app-scenario-still-shows-old-module-schema-after-update/100643)
+- [Human-in-the-Loop in MCP: Safeguarding Autonomous AI — ByteBridge](https://bytebridge.medium.com/human-in-the-loop-in-mcp-safeguarding-autonomous-ai-with-oversight-and-policy-e8f7dbe98aee)
+- [MCP Elicitation — Model Context Protocol specification](https://modelcontextprotocol.io/specification/2025-06-18/client/elicitation)
