@@ -23,7 +23,7 @@ MCP конектор (разширение за Claude Desktop), който св
 ## Инструменти (накратко)
 
 - **Организация/екипи:** `make_list_organizations`, `make_list_teams`
-- **Сценарии:** `make_list_scenarios`, `make_get_scenario`, `make_get_blueprint` (пълна JSON структура — модули/параметри/филтри/връзки), `make_clone_scenario` (безопасно копие за тест на промени)
+- **Сценарии:** `make_list_scenarios`, `make_get_scenario`, `make_get_blueprint` (пълна JSON структура — модули/параметри/филтри/връзки), `make_clone_scenario` (безопасно копие за тест на промени), `make_update_blueprint` (⚠️ high risk — изисква `confirmed:true`, връща snapshot отпреди промяната)
 - **Действия:** `make_run_scenario` (пусни сега), `make_start_scenario` (активирай), `make_stop_scenario` (деактивирай)
 - **Следене:** `make_list_executions` (история), `make_get_execution` (детайли за едно изпълнение)
 - **Data stores:** `make_list_data_stores`, `make_get_records`, `make_add_record`, `make_update_record`, `make_delete_record` (триене само на конкретни ключове)

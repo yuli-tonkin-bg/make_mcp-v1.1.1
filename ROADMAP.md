@@ -44,9 +44,12 @@
 
 ## Tier 3 — мощни, по-рисково (само със защити)
 
-- **create/update/delete scenarios** — само с потвърждение + backup
-- **Blueprint редакция** — с резервно копие + валидация + прицелни промени
-- **AI Agents / Templates / Notifications** — нови/нишови
+⏸ **На пауза (30.07.2026)** — ресърч готов (виж `Make_MCP_Анализ_и_Препоръки.md` раздел 7), изпълнение спряно по избор на потребителя.
+
+- **`make_create_connection`** — най-добре доказан от трети страни, но само за API-key връзки (не OAuth)
+- **`make_replay_execution`** — работи документирано, но Make support не потвърдиха покритие на успешни (не само DLQ) изпълнения
+- **`make_update_scenario_interface`** — най-малко доказан от трети страни, риск от тихо счупване на извикващи сценарии
+- **AI Agents / Templates / Notifications** — нови/нишови, некатегоризирани все още
 
 ---
 
@@ -75,8 +78,8 @@
 | **v1.4.0** ✅ | П1 от Make_MCP_Анализ_и_Препоръки.md: `make_get_blueprint` + `make_get_dlq_bundle` (read-only, 2 инструмента) |
 | **v1.4.1** ✅ | fix: default zone `eu1` → `eu2` (грешен default даваше 401 при инсталация с валиден токен) |
 | **v1.5.0** ✅ | П2 (ниско-рисково): `make_clone_scenario` + `make_delete_dlq` (само конкретни id-та, не bulk „всичко") |
-| **v1.6.0** | П2 висока стойност: `make_update_blueprint` (план→одобрение→действие, предпочитано върху клонинг) |
-| **Бъдеще** | Tier 3 със защити (create/update, blueprint edit) |
+| **v1.6.0** | П2 висока стойност: `make_update_blueprint` (confirmed:true + snapshot отпреди промяната) — код в `develop`, **чака release + тест на живо** |
+| **Бъдеще (⏸ на пауза)** | П3: `make_create_connection`, `make_replay_execution`, `make_update_scenario_interface` — ресърч готов, виж анализа раздел 7 |
 
 ---
 
