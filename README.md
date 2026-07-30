@@ -23,11 +23,11 @@ MCP конектор (разширение за Claude Desktop), който св
 ## Инструменти (накратко)
 
 - **Организация/екипи:** `make_list_organizations`, `make_list_teams`
-- **Сценарии:** `make_list_scenarios`, `make_get_scenario`
+- **Сценарии:** `make_list_scenarios`, `make_get_scenario`, `make_get_blueprint` (пълна JSON структура — модули/параметри/филтри/връзки)
 - **Действия:** `make_run_scenario` (пусни сега), `make_start_scenario` (активирай), `make_stop_scenario` (деактивирай)
 - **Следене:** `make_list_executions` (история), `make_get_execution` (детайли за едно изпълнение)
 - **Data stores:** `make_list_data_stores`, `make_get_records`, `make_add_record`, `make_update_record`, `make_delete_record` (триене само на конкретни ключове)
-- **Паднали изпълнения (DLQ):** `make_list_incomplete`, `make_retry_execution`
+- **Паднали изпълнения (DLQ):** `make_list_incomplete`, `make_retry_execution`, `make_get_dlq_bundle` (реалните данни зад провала)
 - **Webhooks:** `make_list_hooks`, `make_trigger_webhook`
 - **Connections:** `make_list_connections`, `make_test_connection`
 - **Друго:** `make_open_in_browser`
