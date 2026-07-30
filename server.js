@@ -96,7 +96,7 @@ function sleep(ms) {
 // ============================================================================
 
 const API_TOKEN = (process.env.MAKE_API_TOKEN || "").trim();
-const RAW_ZONE = (process.env.MAKE_ZONE || "eu1").trim();
+const RAW_ZONE = (process.env.MAKE_ZONE || "eu2").trim();
 const DEFAULT_ORG_ID = (process.env.MAKE_ORG_ID || "").trim();
 const DEFAULT_TEAM_ID = (process.env.MAKE_TEAM_ID || "").trim();
 
@@ -133,7 +133,7 @@ async function makeRequest(endpoint, { method = "GET", data = null, params = nul
     headers: {
       Authorization: `Token ${API_TOKEN}`,
       "Content-Type": "application/json",
-      "User-Agent": "MakeMCPServer/1.4.0",
+      "User-Agent": "MakeMCPServer/1.4.1",
     },
     timeout,
   };
@@ -471,7 +471,7 @@ async function handleTool(toolName, toolInput) {
   }
 }
 
-const server = new Server({ name: "make-mcp", version: "1.4.0" }, { capabilities: { tools: {} } });
+const server = new Server({ name: "make-mcp", version: "1.4.1" }, { capabilities: { tools: {} } });
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
 
@@ -551,4 +551,4 @@ main().catch((error) => {
   console.error("Fatal error:", error);
   process.exit(1);
 });
-// v1.4.0
+// v1.4.1
