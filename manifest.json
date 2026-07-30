@@ -2,7 +2,7 @@
   "manifest_version": "0.2",
   "name": "make-mcp",
   "display_name": "Make.com Integration for Tonkin Team",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Make.com (Integromat) integration for the Tonkin team — scenarios, blueprints, executions, data stores, incomplete-execution retries and DLQ bundles, webhooks and connections",
   "author": {
     "name": "Tonkin Team"
@@ -136,9 +136,9 @@
     "zone": {
       "type": "string",
       "title": "Region (zone)",
-      "description": "Регионът на твоя Make акаунт — виждаш го в URL-а на Make дашборда: напр. eu1.make.com → въведи 'eu1'. Възможни: eu1, eu2, us1, us2. Може и пълен хост (напр. eu1.make.celonis.com). Грешен регион дава грешка за достъп дори с валиден токен.",
+      "description": "Регионът на твоя Make акаунт — виждаш го в URL-а на Make дашборда: напр. eu2.make.com → въведи 'eu2'. Възможни: eu1, eu2, us1, us2. Може и пълен хост (напр. eu1.make.celonis.com). Грешен регион дава грешка за достъп дори с валиден токен.",
       "required": false,
-      "default": "eu1"
+      "default": "eu2"
     },
     "organization_id": {
       "type": "string",
