@@ -2,8 +2,8 @@
   "manifest_version": "0.2",
   "name": "make-mcp",
   "display_name": "Make.com Integration for Tonkin Team",
-  "version": "1.4.1",
-  "description": "Make.com (Integromat) integration for the Tonkin team — scenarios, blueprints, executions, data stores, incomplete-execution retries and DLQ bundles, webhooks and connections",
+  "version": "1.5.0",
+  "description": "Make.com (Integromat) integration for the Tonkin team — scenarios, blueprints and cloning, executions, data stores, incomplete-execution retries and DLQ bundles/deletes, webhooks and connections",
   "author": {
     "name": "Tonkin Team"
   },
@@ -43,6 +43,10 @@
     {
       "name": "make_get_blueprint",
       "description": "Get the full blueprint (modules, params, filters, connections) of a scenario"
+    },
+    {
+      "name": "make_clone_scenario",
+      "description": "Clone a scenario into a new one (safe copy for testing changes)"
     },
     {
       "name": "make_run_scenario",
@@ -99,6 +103,10 @@
     {
       "name": "make_get_dlq_bundle",
       "description": "Get the real data (bundle) behind a failed/incomplete execution"
+    },
+    {
+      "name": "make_delete_dlq",
+      "description": "Delete specific incomplete/failed execution(s) (DLQ items) by id"
     },
     {
       "name": "make_list_hooks",
